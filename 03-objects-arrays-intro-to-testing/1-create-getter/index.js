@@ -7,9 +7,9 @@ export function createGetter(path) {
   const keys = path.split(".");
   return function (obj) {
     let value = obj;
-    for (let key of keys) {
-      if (value[key] === undefined) {
-        return undefined;
+    for (const key of keys) {
+      if (!value[key]) {
+        return;
       }
       value = value[key];
     }
