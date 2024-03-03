@@ -8,7 +8,7 @@ export function createGetter(path) {
   return function (obj) {
     let value = obj;
     for (const key of keys) {
-      if (!value[key]) {
+      if (!value || Object.hasOwnProperty(value, key)) {
         return;
       }
       value = value[key];
