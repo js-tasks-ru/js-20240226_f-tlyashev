@@ -41,7 +41,7 @@ export default class NotificationMessage {
     NotificationMessage.lastMessage = this;
 
     this.timerId = setTimeout(() => {
-      this.remove();
+      this.destroy();
     }, this.duration);
 
     container.appendChild(this.element);
@@ -49,10 +49,10 @@ export default class NotificationMessage {
 
   remove() {
     this.element.remove();
-    clearTimeout(this.timerId);
   }
 
   destroy() {
     this.remove();
+    clearTimeout(this.timerId);
   }
 }
