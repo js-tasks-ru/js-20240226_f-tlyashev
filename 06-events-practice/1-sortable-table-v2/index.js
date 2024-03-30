@@ -1,38 +1,21 @@
-import { default as SortableTableV1 } from "../../05-dom-document-loading/2-sortable-table-v1/index.js";
-export default class SortableTable extends SortableTableV1 {
+import SortableTableV1 from "../../05-dom-document-loading/2-sortable-table-v1/index.js";
+
+export default class SortableTableV2 extends SortableTableV1 {
   isSortLocally = true;
+  sortField;
+  sortOrder;
 
-  sorted;
-
-  onSortClick = (event) => {
-    const sortableHeaderCell = event.target.closest("[data-sortable]");
-    if (!sortableHeaderCell) {
-      return;
-    }
-    const { id, order } = sortableHeaderCell.dataset;
-    this.sorted = {
-      id,
-      order: order === "desc" ? "asc" : "desc",
-    };
-    this.sort();
-  };
-
-  constructor(
-    headersConfig,
-    {
-      data = [],
-      sorted = {
-        id: headersConfig.find((item) => item.sortable).id,
-        order: "asc",
-      },
-    } = {}
-  ) {
+  constructor(headersConfig, { data = [], sorted = {} } = {}) {
     super(headersConfig, data);
-
     this.sorted = sorted;
-    this.createListeners();
-    this.sort();
+    this.createEventListeners();
   }
+
+  sortOnClient() {
+    super.sort(this.sortField, this.sortOrder);
+  }
+
+  sortOnServer() {}
 
   sort() {
     if (this.isSortLocally) {
@@ -42,28 +25,36 @@ export default class SortableTable extends SortableTableV1 {
     }
   }
 
-  createListeners() {
-    this.subElements.header.addEventListener("pointerdown", this.onSortClick);
+  handleHeaderPointerDown(event) {
+    const currentColumn = event.target.closest('[data-sortable="true"]');
+    if (!currentColumn) {
+      return;
+    }
+
+    this.sortField = currentColumn.dataset.id;
+    this.sortOrder = currentColumn.dataset.order === "desc" ? "asc" : "desc";
+    currentColumn.dataset.order = this.sortOrder;
+
+    this.sort();
   }
 
-  destroyListeners() {
-    this.subElements.header.removeEventListener(
+  createEventListeners() {
+    this.handleHeaderPointerDown = this.handleHeaderPointerDown.bind(this);
+    this.subElements.header.addEventListener(
       "pointerdown",
-      this.onSortClick
+      this.handleHeaderPointerDown
     );
   }
 
-  sortOnClient() {
-    const { id, order } = this.sorted;
-    super.sort(id, order);
+  destroyEventListeners() {
+    this.subElements.header.removeEventListener(
+      "pointerdown",
+      this.handleHeaderPointerDown
+    );
   }
 
-  sortOnServer() {
-    return;
-  }
-
-  destroy = () => {
+  destroy() {
     super.destroy();
-    this.destroyListeners();
-  };
+    this.destroyEventListeners();
+  }
 }

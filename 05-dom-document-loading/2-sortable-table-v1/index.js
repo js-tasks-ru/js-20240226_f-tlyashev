@@ -1,3 +1,7 @@
+import { sortStrings } from "../../utils/sort/sortStrings.js";
+import { sortNumbers } from "../../utils/sort/sortNumbers.js";
+import { createElement } from "../../utils/dom/createElement.js";
+
 export default class SortableTable {
   element;
   subElements = {};
@@ -5,83 +9,66 @@ export default class SortableTable {
   constructor(headerConfig = [], data = []) {
     this.headerConfig = headerConfig;
     this.data = data;
-
-    this.element = this.createElement(this.createTemplateElement());
-    this.selectSubElements();
-
-    this.subElements.header.innerHTML = this.createHeaderTemplate();
-    this.subElements.body.innerHTML = this.createBodyTemplate(this.data);
+    this.element = this.createTable(this.createTableTemplate());
+    this.getSubElements();
   }
 
-  createElement(template) {
-    const element = document.createElement("div");
-    element.innerHTML = template;
-    return element.firstElementChild;
+  createTable(template) {
+    return createElement(template);
   }
 
-  createTemplateElement() {
+  createTableTemplate() {
     return `
-      <div data-element="productsContainer" class="products-list__container">
-        <div class="sortable-table">
-        
-          <div data-element="header" class="sortable-table__header sortable-table__row"></div>
-          <div data-element="body" class="sortable-table__body"></div>
-          
-          <div data-element="loading" class="loading-line sortable-table__loading-line"></div>
-          <div data-element="emptyPlaceholder" class="sortable-table__empty-placeholder">
-            <div>
-              <p>No products satisfies your filter criteria</p>
-              <button type="button" class="button-primary-outline">Reset all filters</button>
-            </div>
+      <div class="sortable-table">
+        <div data-element="header" class="sortable-table__header sortable-table__row">
+          ${this.createTableHeaderTemplate(this.headerConfig)}
+        </div>
+        <div data-element="body" class="sortable-table__body">
+            ${this.createTableBodyTemplate(this.data)}
+        </div>
+        <div data-element="loading" class="loading-line sortable-table__loading-line"></div>
+        <div data-element="emptyPlaceholder" class="sortable-table__empty-placeholder">
+          <div>
+            <p>No products satisfy your filter criteria</p>
+            <button type="button" class="button-primary-outline">Reset all filters</button>
           </div>
         </div>
       </div>
     `;
   }
 
-  selectSubElements() {
-    this.element.querySelectorAll("[data-element]").forEach((element) => {
-      this.subElements[element.dataset.element] = element;
-    });
-  }
-
-  createHeaderTemplate(sortField = "", sortOrder = "") {
-    return this.headerConfig
-      .map(({ id, title, sortable }) => {
+  createTableHeaderTemplate(columns) {
+    return columns
+      .map((col) => {
+        if (col.sortable) {
+          return `
+            <div class="sortable-table__cell" data-id="${col.id}" data-sortable="${col.sortable}" data-order>
+              <span>${col.title}</span>
+              <span data-element="arrow" class="sortable-table__sort-arrow">
+                <span class="sort-arrow"></span>
+              </span>
+            </div>
+          `;
+        }
         return `
-        <div 
-          class="sortable-table__cell" 
-          data-id="${id}" 
-          data-sortable="${sortable}" 
-          data-order="${sortOrder}"
-        >
-        <span>${title}</span>
-          ${this.createSortArrowTemplate(sortField, id)}
-        </div>
-      `;
+          <div class="sortable-table__cell" data-id="${col.id}" data-sortable="false">
+            <span>${col.title}</span>
+          </div>
+        `;
       })
       .join("");
   }
 
-  createSortArrowTemplate(sortField = "", id = "") {
-    if (sortField === id) {
-      return `
-        <span data-element="arrow" class="sortable-table__sort-arrow">
-          <span class="sort-arrow"></span>
-        </span>
-      `;
-    }
-    return "";
-  }
-
-  createBodyTemplate(data) {
+  createTableBodyTemplate(data) {
     return data
       .map(
         (rowData) =>
           `
           <a href="/products/${rowData.id}" class="sortable-table__row">
             ${this.headerConfig
-              .map((config) => this.createBodyColumn(config, rowData))
+              .map((config) =>
+                this.createTableBodyColumnTemplate(config, rowData)
+              )
               .join("")}
           </a>
         `
@@ -89,33 +76,50 @@ export default class SortableTable {
       .join("");
   }
 
-  createBodyColumn(config, rowData) {
+  createTableBodyColumnTemplate(config, rowData) {
     if (config.template) {
-      return config.template(rowData);
+      return config.template(rowData[config.id]);
     }
     return `<div class="sortable-table__cell">${rowData[config.id]}</div>`;
   }
 
-  sort(fieldName, orderName) {
-    const sortedData = [...this.data].sort((a, b) => {
-      const direction = orderName === "desc" ? -1 : 1;
-      const value = a[fieldName];
-      const nextValue = b[fieldName];
+  getSubElements() {
+    const elements = this.element.querySelectorAll("[data-element]");
+    for (const element of elements) {
+      this.subElements[element.dataset.element] = element;
+    }
+  }
 
-      if (typeof value === "string") {
-        return (
-          direction *
-          value.localeCompare(nextValue, ["ru", "en"], { caseFirst: "upper" })
-        );
+  setColumnOrder(field, order) {
+    const columns = this.element.querySelectorAll('[data-sortable="true"]');
+    for (const column of columns) {
+      if (column.dataset.id !== field) {
+        column.dataset.order = "";
+      } else {
+        column.dataset.order = order;
       }
-      return direction * (value - nextValue);
-    });
+    }
+  }
 
-    this.subElements.header.innerHTML = this.createHeaderTemplate(
-      fieldName,
-      orderName
+  sort(field, order) {
+    this.setColumnOrder(field, order);
+
+    const sortType = this.headerConfig.find(
+      (config) => config.id === field
+    ).sortType;
+
+    switch (sortType) {
+      case "string":
+        sortStrings(this.data, field, order);
+        break;
+      case "number":
+        sortNumbers(this.data, field, order);
+        break;
+    }
+
+    this.subElements["body"].innerHTML = this.createTableBodyTemplate(
+      this.data
     );
-    this.subElements.body.innerHTML = this.createBodyTemplate(sortedData);
   }
 
   remove() {
