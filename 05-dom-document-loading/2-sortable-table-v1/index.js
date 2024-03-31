@@ -9,12 +9,8 @@ export default class SortableTable {
   constructor(headerConfig = [], data = []) {
     this.headerConfig = headerConfig;
     this.data = data;
-    this.element = this.createTable(this.createTableTemplate());
+    this.element = createElement(this.createTableTemplate());
     this.getSubElements();
-  }
-
-  createTable(template) {
-    return createElement(template);
   }
 
   createTableTemplate() {

@@ -367,8 +367,6 @@ export default class ProductForm {
 
   destroy() {
     this.remove();
-    this.element = null;
-    this.subElements = null;
   }
 
   remove() {
